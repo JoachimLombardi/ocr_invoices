@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
-from openai import OpenAI
-import os
+import requests
 import fitz
 import base64
 import pandas as pd
@@ -13,6 +12,16 @@ from dateutil import parser
 from dotenv import load_dotenv
 
 load_dotenv()
+
+import re
+
+
+def sanitize_excel_sheet_name(name: str) -> str:
+    forbidden_chars = r'[:\/\\\?\*\[\]]'
+    parts = name.split()
+    clean_parts = [part for part in parts if not re.search(forbidden_chars, part)]
+    clean_name = " ".join(clean_parts)
+    return clean_name[:31]
 
 
 def to_french_date(date_str: str) -> str:
@@ -92,17 +101,18 @@ def fill_excel_file(list_invoices_dict, csv_file):
     except FileNotFoundError:
         wb = Workbook()
     for invoice in list_invoices_dict:
+        print(invoice)
         company_name = invoice.get("company_name", "Unknown")
+        company_name = sanitize_excel_sheet_name(company_name)
         invoice_ref = invoice.get("invoice_reference", {})
-        invoice_number = invoice_ref.get("invoice_number", "")
-        invoice_date = invoice_ref.get("invoice_date_raw", "")
+        invoice_number = invoice_ref.get("number", "")
+        invoice_date = invoice_ref.get("date", "")
         invoice_date = to_french_date(invoice_date)
         invoice_num = invoice_number + "DU " + invoice_date
         if company_name in wb.sheetnames:
             ws = wb[company_name]
         else:
             ws = wb.create_sheet(title=company_name)
-            # En-têtes
             headers = [
                 "N° FACTURE", "REF",
                 "Article", "Quantité facturée",
@@ -126,10 +136,8 @@ prompt = """
    You are an expert assistant.
     You are given:
     - the text extracted from a PDF invoice
-    - an image of the invoice
     Your task:
     - extract the relevant invoice information
-    - compare the extracted text with the image to validate correctness
     - call the function extract_invoice_data with the extracted values
     Do not hallucinate values.
     """
@@ -150,16 +158,16 @@ tools = [{
                     "type": "object",
                     "description": "Invoice reference as written on the document",
                     "properties": {
-                        "invoice_number": {
+                        "number": {
                             "type": "string",
                             "description": "Invoice identifier extracted from the invoice header"
                         },
-                        "invoice_date_raw": {
+                        "date": {
                             "type": "string",
-                            "description": "Invoice date exactly as written on the invoice (any format)"
+                            "description": "Date found near the invoice number or in the header, even if unlabeled or on a separate line (e.g. '14-08-2024')"
                         },
                     },
-                    "required": ["invoice_number", "invoice_date_raw"]
+                    "required": ["invoice_number"]
                 },
                 "articles": {
                     "type": "array",
@@ -213,7 +221,7 @@ if st.button("Lancer le traitement"):
             text = "\n".join(list_texts)
             messages = [{"role":"user", "content": prompt + "\n\n" + text}]
             data = {
-                    "model": "openai/gpt-oss-20b",
+                    "model": "gpt-oss",
                     "messages": messages,
                     "tools": tools,
                     "stream": False,
@@ -224,11 +232,10 @@ if st.button("Lancer le traitement"):
                     }
             for attempt in range(1,4):
                 try:
-                    print("api huggingface llm call")
-                    client = OpenAI(base_url="https://router.huggingface.co/v1",
-                                    api_key=os.getenv("HUGGINGFACE_API_KEY"))
-                    response = client.chat.completions.create(**data) 
-                    final_response = response.choices[0].message
+                    print("api ollama llm call")
+                    response = requests.post('http://localhost:11434/api/chat', json=data).json()
+                    final_response = response["message"]
+                    print("final_response", final_response)
                     tool_call = None
                     if hasattr(final_response, "tool_calls") and final_response.tool_calls:
                         tool_call = final_response.tool_calls[0]
@@ -240,11 +247,15 @@ if st.button("Lancer le traitement"):
                             invoice_dict = tool_call.get("function", {}).get("arguments", None)
                         else:
                             invoice_dict = getattr(tool_call.function, "arguments", None)
-                    if isinstance(invoice_dict, dict):
+                    if isinstance(invoice_dict, str):
                         try:
                             invoice_dict = json.loads(invoice_dict)
-                        except json.JSONDecodeError:
-                            pass
+                        except json.JSONDecodeError as e:
+                            print("JSONDecodeError:", e)
+                    elif isinstance(invoice_dict, dict):
+                        pass
+                    else:
+                        raise TypeError(f"invoice_dict is not a string, it's a {type(invoice_dict)}")
                     list_invoices_dict.append(invoice_dict)
                     break
                 except Exception as e:
