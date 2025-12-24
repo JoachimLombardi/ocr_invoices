@@ -187,11 +187,13 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
         empty_row = pd.DataFrame([[""] * len(df_existing.columns)], columns=df_existing.columns)
         df = pd.concat([df_existing, empty_row, df_new], ignore_index=True)
         sheets[sheet_name] = df
-    with pd.ExcelWriter(excel_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+    with pd.ExcelWriter(excel_path, engine="openpyxl", if_sheet_exists="replace") as writer:
         for sheet_name, df in sheets.items():
             df.to_excel(writer, index=False, sheet_name=sheet_name)
-    desktop_path = Path.home() / "Bureau" / excel_name
-    shutil.copy(excel_path, desktop_path)
+    st.success(f"Le fichier Excel {csv_file.name} a été rempli avec les {len(invoices) } factures, vous pouvez le telecharger ci-dessous.😃🔥")
+    st.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
+    with open(excel_path, "rb") as f:
+        st.download_button(label="Télécharger le fichier Excel", data=f, file_name=excel_name)
 
 
 tools = [{
@@ -308,8 +310,6 @@ if st.button("Lancer le traitement"):
         st.subheader("💰 Coût du traitement")
         st.metric(label="Coût total", value=f"{total_cost:.4f} €")
         fill_excel_file(list_invoices_dict, csv_file, csv_file.name)
-        st.success(f"Le fichier Excel {csv_file.name} a été copié sur le bureau et rempli avec les {len(invoices) } factures.😃🔥")
-        st.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
   
   
 
