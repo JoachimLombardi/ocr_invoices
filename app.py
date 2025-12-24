@@ -11,43 +11,8 @@ from dateutil import parser
 from dotenv import load_dotenv
 import re
 from openai import OpenAI
-from forex_python.converter import CurrencyRates
 
 load_dotenv()
-
-
-def usd_to_eur(amount_usd):
-    """
-    Convert an amount in USD to EUR using the latest exchange rate.
-    
-    Args:
-        amount_usd (float): The amount in USD to convert.
-    
-    Returns:
-        float: The equivalent amount in EUR.
-    """
-    c = CurrencyRates()
-    rate = c.get_rate('USD', 'EUR')
-    return amount_usd * rate
-
-
-def calculate_image_processing(usage):
-    """
-    Calculate the cost of image processing based on the number of prompt tokens and completion tokens.
-
-    The cost is calculated as follows:
-        cost = (prompt_tokens * 3 + completion_tokens * 12) / 1_000_000
-
-    Args:
-        usage (object): An object containing the prompt_tokens and completion_tokens attributes.
-
-    Returns:
-        float: The cost of image processing.
-    """
-    prompt_tokens = getattr(usage, "prompt_tokens", 0)
-    completion_tokens = getattr(usage, "completion_tokens", 0)
-    cost = (prompt_tokens * 3 + completion_tokens * 12) / 1_000_000
-    return cost
 
 
 def sanitize_excel_sheet_name(name: str) -> str:
