@@ -187,7 +187,7 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
         empty_row = pd.DataFrame([[""] * len(df_existing.columns)], columns=df_existing.columns)
         df = pd.concat([df_existing, empty_row, df_new], ignore_index=True)
         sheets[sheet_name] = df
-    with pd.ExcelWriter(excel_path, engine="openpyxl", if_sheet_exists="replace") as writer:
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
         for sheet_name, df in sheets.items():
             df.to_excel(writer, index=False, sheet_name=sheet_name)
     st.success(f"Le fichier Excel {csv_file.name} a été rempli avec les {len(invoices) } factures, vous pouvez le telecharger ci-dessous.😃🔥")
