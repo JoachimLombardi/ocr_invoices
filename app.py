@@ -3,13 +3,11 @@ import os
 from pathlib import Path
 import shutil
 import unicodedata
-
 import pandas as pd
 import fitz
 import base64
 import streamlit as st
 import tempfile
-from openpyxl import load_workbook, Workbook
 from dateutil import parser
 from dotenv import load_dotenv
 import re
@@ -285,7 +283,7 @@ if st.button("Lancer le traitement"):
                     "tool_choice": {"type": "function", "name": "extract_invoice_data"},
                     "temperature": 0,
                     }
-            for attempt in range(1,2):
+            for attempt in range(1,4):
                 try:
                     print("api gpt call")
                     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -307,13 +305,8 @@ if st.button("Lancer le traitement"):
                     break
                 except Exception as e:
                     print(f"Attempt {attempt}/3 \n API call failed with error: {e} - retrying...")
-        path = Path("data/invoices.json")
-        with open(path, "w") as f:
-            json.dump(list_invoices_dict, f)
         st.subheader("💰 Coût du traitement")
         st.metric(label="Coût total", value=f"{total_cost:.4f} €")
-        with open("data/invoices.json", "r") as f:
-            list_invoices_dict = json.load(f)
         fill_excel_file(list_invoices_dict, csv_file, csv_file.name)
         st.success(f"Le fichier Excel {csv_file.name} a été copié sur le bureau et rempli avec les {len(invoices) } factures.😃🔥")
         st.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
