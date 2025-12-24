@@ -271,7 +271,6 @@ if st.button("Lancer le traitement"):
         st.error("Veuillez fournir des factures et un fichier Excel")
     else:
         list_invoices_dict = []
-        total_cost = 0
         for invoice in invoices:
             list_images = invoice_to_image(invoice)
             messages = [{"role":"user", "content": []}]
@@ -289,9 +288,6 @@ if st.button("Lancer le traitement"):
                     print("api gpt call")
                     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                     response = client.responses.create(**data)
-                    usage = response.usage
-                    cost = calculate_image_processing(usage)
-                    total_cost += usd_to_eur(cost)
                     final_response = response.output[0].to_json()
                     if isinstance(final_response, dict):
                         invoice_dict = final_response.get("arguments", None)
@@ -306,8 +302,6 @@ if st.button("Lancer le traitement"):
                     break
                 except Exception as e:
                     print(f"Attempt {attempt}/3 \n API call failed with error: {e} - retrying...")
-        st.subheader("💰 Coût du traitement")
-        st.metric(label="Coût total", value=f"{total_cost:.4f} €")
         fill_excel_file(list_invoices_dict, csv_file, csv_file.name)
   
   
