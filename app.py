@@ -193,6 +193,8 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
     st.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
     with open(excel_path, "rb") as f:
         st.download_button(label="Télécharger le fichier Excel", data=f, file_name=excel_name)
+    st.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
+
 
 
 tools = [{
