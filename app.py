@@ -231,7 +231,7 @@ tools = [{
                     "properties": {
                         "reference": {
                             "type": ["string", "null"],
-                            "description": "Item reference or SKU.Only fill if explicitly labeled as REF, SKU, CODE, or Reference. Otherwise return null."
+                            "description": "Item reference or SKU. Null if not present."
                         },
                         "designation": {
                             "type": "string",
