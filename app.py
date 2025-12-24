@@ -1,7 +1,6 @@
 import json
 import os
 from pathlib import Path
-import shutil
 import unicodedata
 import pandas as pd
 import fitz
@@ -232,7 +231,7 @@ tools = [{
                     "properties": {
                         "reference": {
                             "type": ["string", "null"],
-                            "description": "Item reference or SKU"
+                            "description": "Item reference or SKU.Only fill if explicitly labeled as REF, SKU, CODE, or Reference. Otherwise return null."
                         },
                         "designation": {
                             "type": "string",
