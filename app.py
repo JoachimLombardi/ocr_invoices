@@ -190,11 +190,10 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
         for sheet_name, df in sheets.items():
             df.to_excel(writer, index=False, sheet_name=sheet_name)
     st.success(f"Le fichier Excel {csv_file.name} a été rempli avec les {len(invoices) } factures, vous pouvez le telecharger ci-dessous.😃🔥")
-    st.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
+    warning_box = st.empty()
+    warning_box.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
     with open(excel_path, "rb") as f:
         st.download_button(label="Télécharger le fichier Excel", data=f, file_name=excel_name)
-    st.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
-
 
 
 tools = [{
