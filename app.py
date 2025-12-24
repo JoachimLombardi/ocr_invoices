@@ -1,27 +1,94 @@
 import json
+import os
 from pathlib import Path
-import requests
+import shutil
+import unicodedata
+
+import pandas as pd
 import fitz
 import base64
-import pandas as pd
-from PIL import Image
 import streamlit as st
 import tempfile
 from openpyxl import load_workbook, Workbook
 from dateutil import parser
 from dotenv import load_dotenv
+import re
+from openai import OpenAI
+from forex_python.converter import CurrencyRates
 
 load_dotenv()
 
-import re
+
+def usd_to_eur(amount_usd):
+    """
+    Convert an amount in USD to EUR using the latest exchange rate.
+    
+    Args:
+        amount_usd (float): The amount in USD to convert.
+    
+    Returns:
+        float: The equivalent amount in EUR.
+    """
+    c = CurrencyRates()
+    rate = c.get_rate('USD', 'EUR')
+    return amount_usd * rate
+
+
+def calculate_image_processing(usage):
+    """
+    Calculate the cost of image processing based on the number of prompt tokens and completion tokens.
+
+    The cost is calculated as follows:
+        cost = (prompt_tokens * 3 + completion_tokens * 12) / 1_000_000
+
+    Args:
+        usage (object): An object containing the prompt_tokens and completion_tokens attributes.
+
+    Returns:
+        float: The cost of image processing.
+    """
+    prompt_tokens = getattr(usage, "prompt_tokens", 0)
+    completion_tokens = getattr(usage, "completion_tokens", 0)
+    cost = (prompt_tokens * 3 + completion_tokens * 12) / 1_000_000
+    return cost
 
 
 def sanitize_excel_sheet_name(name: str) -> str:
-    forbidden_chars = r'[:\/\\\?\*\[\]]'
-    parts = name.split()
-    clean_parts = [part for part in parts if not re.search(forbidden_chars, part)]
-    clean_name = " ".join(clean_parts)
+    """
+    Sanitize an Excel sheet name by removing forbidden characters and limiting it to 31 characters.
+    
+    Forbidden characters are: `[:\/\\\?\*\[\]\,]`.
+    The sanitized name is returned in uppercase.
+    
+    Args:
+        name (str): The name to sanitize.
+        
+    Returns:
+        str: The sanitized name.
+    """
+    forbidden_chars = r'[:\/\\\?\*\[\]\,]'
+    clean_name = re.sub(forbidden_chars, "", name).upper()
     return clean_name[:31]
+
+
+def normalize_excel_sheet_name(name: str) -> str:
+    """
+    Normalize an Excel sheet name by removing accents and converting to lowercase.
+
+    This function is used to sanitize Excel sheet names before writing them to an Excel file.
+    It uses the unicodedata.normalize() function to remove accents from the name, and then
+    converts the name to lowercase and removes any whitespace characters.
+
+    Args:
+        name (str): The name to normalize.
+
+    Returns:
+        str: The normalized name.
+    """
+    name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    name = name.lower()
+    name = re.sub(r"\s+", "", name)
+    return name
 
 
 def to_french_date(date_str: str) -> str:
@@ -38,11 +105,11 @@ def to_french_date(date_str: str) -> str:
         dt = parser.parse(date_str, dayfirst=False) 
         return dt.strftime("%d/%m/%Y")
     except Exception as e:
-        print(f"Impossible de parser la date {date_str}: {e}")
+        print(f"Error converting {date_str}: {e}")
         return date_str 
 
 
-def invoice_to_image_and_text(invoice):
+def invoice_to_image(invoice):
     """
     Convert a PDF document to an image and a text.
 
@@ -57,34 +124,23 @@ def invoice_to_image_and_text(invoice):
         path = tmp_file.name
     path = Path(path)
     doc = fitz.open(path)
-    list_img_path = []
-    text = []
-    for page_num in range(len(doc)):
-        page = doc.load_page(page_num)
-        # Extract text
-        text.append(page.get_text())
-        # Image path
-        img_path = path.parent / f"{path.stem}_{page_num}.jpg"
-        list_img_path.append(img_path)
+    list_b64 = []
+    matrix = fitz.Matrix(2, 2) 
+    for page in doc:
         # Convert to image
-        matrix = fitz.Matrix(2, 2) 
         pix = page.get_pixmap(matrix=matrix)
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        # Save image
-        img.save(img_path, "JPEG", quality=100)
-    doc.close()
-    try:
-        list_b64 = []
-        for img_path in list_img_path:
-            with open(img_path, "rb") as image_file:
-               list_b64.append(base64.b64encode(image_file.read()).decode("utf-8"))
-        return list_b64, text
-    except Exception as e:
-        print(f"The file {path} could not be read. Error: {e}")
-        return None
+        img_bytes = pix.tobytes("jpeg")
+        try:
+            base64_image = base64.b64encode(img_bytes).decode("utf-8")
+        except Exception as e: 
+            print(f"Error: {e}")
+            return None
+        url= f"data:image/jpeg;base64,{base64_image}"
+        list_b64.append(url)
+    return list_b64
     
 
-def fill_excel_file(list_invoices_dict, csv_file):
+def fill_excel_file(list_invoices_dict, csv_file, excel_name):
     """
     Fill an Excel file with the invoice data.
     
@@ -94,114 +150,114 @@ def fill_excel_file(list_invoices_dict, csv_file):
     """
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
         tmp_file.write(csv_file.read())
-        excel_path = tmp_file.name
-    excel_path = Path(excel_path)
+        excel_path = Path(tmp_file.name)
     try:
-        wb = load_workbook(excel_path)
-    except FileNotFoundError:
-        wb = Workbook()
+        sheets = pd.read_excel(excel_path, sheet_name=None)
+    except Exception:
+        sheets = {}
+    csv_file.seek(0)
     for invoice in list_invoices_dict:
-        print(invoice)
         company_name = invoice.get("company_name", "Unknown")
-        company_name = sanitize_excel_sheet_name(company_name)
-        invoice_ref = invoice.get("invoice_reference", {})
-        invoice_number = invoice_ref.get("number", "")
-        invoice_date = invoice_ref.get("date", "")
-        invoice_date = to_french_date(invoice_date)
-        invoice_num = invoice_number + "DU " + invoice_date
-        if company_name in wb.sheetnames:
-            ws = wb[company_name]
+        number = invoice.get("invoice_reference", {}).get("number", "Unknown")  
+        date = invoice.get("invoice_reference", {}).get("date", "Unknown")
+        date = to_french_date(date)
+        invoice_number = f"{number} du {date}"
+        sheets_2 = {}
+        for sheet_name in sheets:
+            sheets_2[normalize_excel_sheet_name(sheet_name)] = sheet_name
+        normalized_company_name = normalize_excel_sheet_name(company_name)
+        COLUMNS = ["N° FACTURE", "REF", "Article", "Quantité facturée", "Prix unitaire", "Total payé HT", 
+                   "Stock entré en caisse", "Stock restant en caisse", "Boutique", "Casse ou échange"]
+        if normalized_company_name in sheets_2:
+            sheet_name = sheets_2[normalized_company_name]
+            df_existing = sheets[sheet_name]
+            df_existing.columns = COLUMNS
         else:
-            ws = wb.create_sheet(title=company_name)
-            headers = [
-                "N° FACTURE", "REF",
-                "Article", "Quantité facturée",
-                "Prix unitaire", "Total payé HT"
-            ]
-            ws.append(headers)
+            sheet_name = sanitize_excel_sheet_name(company_name)
+            df_existing = pd.DataFrame(columns=COLUMNS)
+        rows = []
         for article in invoice.get("articles", []):
-            row = [
-                invoice_num,
-                article.get("reference", ""),
-                article.get("designation", ""),
-                article.get("quantity", ""),
-                article.get("unit_price", ""),
-                article.get("total_price", "")
-            ]
-            ws.append(row)
-        wb.save(excel_path)
+            row = {col: None for col in COLUMNS}
+            row["N° FACTURE"] = invoice_number
+            row["REF"] = article.get("reference", "")
+            row["Article"] = article.get("designation", "")
+            row["Quantité facturée"] = article.get("quantity")
+            row["Prix unitaire"] = article.get("unit_price")
+            row["Total payé HT"] = article.get("total_price")
+            rows.append(row)
+        df_new = pd.DataFrame(rows, columns=COLUMNS)
+        empty_row = pd.DataFrame([[""] * len(df_existing.columns)], columns=df_existing.columns)
+        df = pd.concat([df_existing, empty_row, df_new], ignore_index=True)
+        sheets[sheet_name] = df
+    with pd.ExcelWriter(excel_path, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+        for sheet_name, df in sheets.items():
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+    desktop_path = Path.home() / "Bureau" / excel_name
+    shutil.copy(excel_path, desktop_path)
 
-
-prompt = """
-   You are an expert assistant.
-    You are given:
-    - the text extracted from a PDF invoice
-    Your task:
-    - extract the relevant invoice information
-    - call the function extract_invoice_data with the extracted values
-    Do not hallucinate values.
-    """
 
 tools = [{
     "type":"function",
-    "function":{
-        "name": "extract_invoice_data",
-        "description": "Extract structured data from an invoice",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "company_name": {
-                    "type": "string",
-                    "description": "Name of the company issuing the invoice"
-                },
-                "invoice_reference": {
-                    "type": "object",
-                    "description": "Invoice reference as written on the document",
-                    "properties": {
-                        "number": {
-                            "type": "string",
-                            "description": "Invoice identifier extracted from the invoice header"
-                        },
-                        "date": {
-                            "type": "string",
-                            "description": "Date found near the invoice number or in the header, even if unlabeled or on a separate line (e.g. '14-08-2024')"
-                        },
-                    },
-                    "required": ["invoice_number"]
-                },
-                "articles": {
-                    "type": "array",
-                    "description": "List of items listed on the invoice",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "reference": {
-                                "type": "string",
-                                "description": "Item reference or SKU"
-                            },
-                            "designation": {
-                                "type": "string",
-                                "description": "Item name or description"
-                            },
-                            "quantity": {
-                                "type": "number",
-                                "description": "Quantity of the item"
-                            },
-                            "unit_price": {
-                                "type": "number",
-                                "description": "Unit price before tax"
-                            },
-                            "total_price": {
-                                "type": "number",
-                                "description": "Total price for this item (quantity × unit price)"
-                            }
-                        },
-                        "required": ["reference", "designation", "quantity", "unit_price", "total_price"]
-                    }
-                },
+    "name": "extract_invoice_data",
+    "description": "Extract structured data from an invoice",
+    "strict": True,
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "company_name": {
+                "type": "string",
+                "description": "Name of the company issuing the invoice"
             },
-            "required": ["company_name", "invoice_reference", "articles"]
-        }
+            "invoice_reference": {
+                "type": "object",
+                "description": "Invoice reference as written on the document",
+                "properties": {
+                    "number": {
+                        "type": "string",
+                        "description": "Invoice identifier extracted from the invoice header"
+                    },
+                    "date": {
+                        "type": "string",
+                        "description": "Date found near the invoice number or in the header, even if unlabeled or on a separate line (e.g. '14-08-2024')"
+                    },
+                },
+                "required": ["number", "date"],
+                "additionalProperties": False
+            },
+            "articles": {
+                "type": "array",
+                "description": "List of items listed on the invoice",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "reference": {
+                            "type": ["string", "null"],
+                            "description": "Item reference or SKU"
+                        },
+                        "designation": {
+                            "type": "string",
+                            "description": "Item name or description"
+                        },
+                        "quantity": {
+                            "type": "number",
+                            "description": "Quantity of the item"
+                        },
+                        "unit_price": {
+                            "type": "number",
+                            "description": "Unit price before tax"
+                        },
+                        "total_price": {
+                            "type": "number",
+                            "description": "Total price for this item (quantity × unit price)"
+                        }
+                    },
+                    "required": ["reference", "designation", "quantity", "unit_price", "total_price"],
+                    "additionalProperties": False
+                }
+            },
+        },
+        "required": ["company_name", "invoice_reference", "articles"],
+        "additionalProperties": False
     }
 }]
 st.title("Extraction factures")
@@ -216,51 +272,54 @@ if st.button("Lancer le traitement"):
         st.error("Veuillez fournir des factures et un fichier Excel")
     else:
         list_invoices_dict = []
+        total_cost = 0
         for invoice in invoices:
-            list_b64, list_texts = invoice_to_image_and_text(invoice)
-            text = "\n".join(list_texts)
-            messages = [{"role":"user", "content": prompt + "\n\n" + text}]
+            list_images = invoice_to_image(invoice)
+            messages = [{"role":"user", "content": []}]
+            for image_url in list_images:
+                messages[0]["content"].append({"type":"input_image", "image_url":image_url})
             data = {
-                    "model": "gpt-oss",
-                    "messages": messages,
+                    "model": "gpt-4.1",
+                    "input": messages,
                     "tools": tools,
-                    "stream": False,
+                    "tool_choice": {"type": "function", "name": "extract_invoice_data"},
                     "temperature": 0,
-                    "max_tokens": 5000,
-                    "top_p": 1e-6,
-                    "seed": 42
                     }
-            for attempt in range(1,4):
+            for attempt in range(1,2):
                 try:
-                    print("api ollama llm call")
-                    response = requests.post('http://localhost:11434/api/chat', json=data).json()
-                    final_response = response["message"]
-                    print("final_response", final_response)
-                    tool_call = None
-                    if hasattr(final_response, "tool_calls") and final_response.tool_calls:
-                        tool_call = final_response.tool_calls[0]
-                    elif isinstance(final_response, dict) and final_response.get("tool_calls"):
-                        tool_call = final_response["tool_calls"][0]
-                    invoice_dict = None
-                    if tool_call:
-                        if isinstance(tool_call, dict):
-                            invoice_dict = tool_call.get("function", {}).get("arguments", None)
-                        else:
-                            invoice_dict = getattr(tool_call.function, "arguments", None)
-                    if isinstance(invoice_dict, str):
-                        try:
-                            invoice_dict = json.loads(invoice_dict)
-                        except json.JSONDecodeError as e:
-                            print("JSONDecodeError:", e)
-                    elif isinstance(invoice_dict, dict):
-                        pass
+                    print("api gpt call")
+                    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                    response = client.responses.create(**data)
+                    usage = response.usage
+                    cost = calculate_image_processing(usage)
+                    total_cost += usd_to_eur(cost)
+                    final_response = response.output[0].to_json()
+                    if isinstance(final_response, dict):
+                        invoice_dict = final_response.get("arguments", None)
+                        invoice_dict = json.loads(invoice_dict)
+                    elif isinstance(final_response, str):
+                        invoice_dict = json.loads(final_response)
+                        invoice_dict = invoice_dict.get("arguments", None)
+                        invoice_dict = json.loads(invoice_dict)
                     else:
-                        raise TypeError(f"invoice_dict is not a string, it's a {type(invoice_dict)}")
+                        raise TypeError(f"final_response is not a string or a dict, it's a {type(final_response)}")
                     list_invoices_dict.append(invoice_dict)
                     break
                 except Exception as e:
                     print(f"Attempt {attempt}/3 \n API call failed with error: {e} - retrying...")
-        fill_excel_file(list_invoices_dict, csv_file)
+        path = Path("data/invoices.json")
+        with open(path, "w") as f:
+            json.dump(list_invoices_dict, f)
+        st.subheader("💰 Coût du traitement")
+        st.metric(label="Coût total", value=f"{total_cost:.4f} €")
+        with open("data/invoices.json", "r") as f:
+            list_invoices_dict = json.load(f)
+        fill_excel_file(list_invoices_dict, csv_file, csv_file.name)
+        st.success(f"Le fichier Excel {csv_file.name} a été copié sur le bureau et rempli avec les {len(invoices) } factures.😃🔥")
+        st.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
+  
+  
+
 
 
 
