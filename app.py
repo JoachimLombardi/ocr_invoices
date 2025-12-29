@@ -102,7 +102,7 @@ def invoice_to_image(invoice):
     return list_b64
     
 
-def fill_excel_file(list_invoices_dict, excel_file, excel_name):
+def fill_excel_file(list_invoices_dict, excel_file):
     """
     Fill an Excel file with the invoice data.
     
@@ -153,11 +153,11 @@ def fill_excel_file(list_invoices_dict, excel_file, excel_name):
     with pd.ExcelWriter(excel_path, engine="openpyxl") as excel_writer:
         for sheet_name, df in sheets.items():
             df.to_excel(excel_writer, index=False, sheet_name=sheet_name)
-    st.success(f"Le fichier Excel {excel_name} a été rempli avec les {len(invoices) } factures, vous pouvez le telecharger ci-dessous.😃🔥")
+    st.success(f"Le fichier Excel {excel_file.name} a été rempli avec les {len(invoices)} factures, vous pouvez le telecharger ci-dessous.😃🔥")
     warning_box = st.empty()
     warning_box.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
     with open(excel_path, "rb") as f:
-        st.download_button(label="Télécharger le fichier Excel", data=f, file_name=excel_name)
+        st.download_button(label="Télécharger le fichier Excel", data=f, file_name=excel_file.name)
 
 
 tools = [{
@@ -267,7 +267,7 @@ if st.button("Lancer le traitement"):
                     break
                 except Exception as e:
                     print(f"Attempt {attempt}/3 \n API call failed with error: {e} - retrying...")
-        fill_excel_file(list_invoices_dict, excel_file, excel_file.name)
+        fill_excel_file(list_invoices_dict, excel_file)
   
   
 
