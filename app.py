@@ -102,7 +102,7 @@ def invoice_to_image(invoice):
     return list_b64
     
 
-def fill_excel_file(list_invoices_dict, csv_file, excel_name):
+def fill_excel_file(list_invoices_dict, excel_file, excel_name):
     """
     Fill an Excel file with the invoice data.
     
@@ -111,13 +111,13 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
         excel_path (str): The path to the Excel file.
     """
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
-        tmp_file.write(csv_file.read())
+        tmp_file.write(excel_file.read())
         excel_path = Path(tmp_file.name)
     try:
         sheets = pd.read_excel(excel_path, sheet_name=None)
     except Exception:
         sheets = {}
-    csv_file.seek(0)
+    excel_file.seek(0)
     normalized_names = {normalize_excel_sheet_name(sheet_name):sheet_name for sheet_name in sheets}
     COLUMNS = ["N° FACTURE", "REF", "Article", "Quantité facturée", "Prix unitaire", "Total payé HT", 
                "Stock entré en caisse", "Stock restant en caisse", "Boutique", "Casse ou échange"]
@@ -153,7 +153,7 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
     with pd.ExcelWriter(excel_path, engine="openpyxl") as excel_writer:
         for sheet_name, df in sheets.items():
             df.to_excel(excel_writer, index=False, sheet_name=sheet_name)
-    st.success(f"Le fichier Excel {csv_file.name} a été rempli avec les {len(invoices) } factures, vous pouvez le telecharger ci-dessous.😃🔥")
+    st.success(f"Le fichier Excel {excel_name} a été rempli avec les {len(invoices) } factures, vous pouvez le telecharger ci-dessous.😃🔥")
     warning_box = st.empty()
     warning_box.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
     with open(excel_path, "rb") as f:
@@ -230,9 +230,9 @@ invoices = st.file_uploader(
     type=["pdf", "png", "jpg"],
     accept_multiple_files=True
 )
-csv_file = st.file_uploader("Fichier Excel", type=["csv", "xlsx"])
+excel_file = st.file_uploader("Fichier Excel", type=["csv", "xlsx"])
 if st.button("Lancer le traitement"):
-    if not invoices or not csv_file:
+    if not invoices or not excel_file:
         st.error("Veuillez fournir des factures et un fichier Excel")
     else:
         list_invoices_dict = []
@@ -267,7 +267,7 @@ if st.button("Lancer le traitement"):
                     break
                 except Exception as e:
                     print(f"Attempt {attempt}/3 \n API call failed with error: {e} - retrying...")
-        fill_excel_file(list_invoices_dict, csv_file, csv_file.name)
+        fill_excel_file(list_invoices_dict, excel_file, excel_file.name)
   
   
 
