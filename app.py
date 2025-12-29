@@ -118,24 +118,23 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
     except Exception:
         sheets = {}
     csv_file.seek(0)
+    sheets_2 = {normalize_excel_sheet_name(sheet_name):sheet_name for sheet_name in sheets}
+    COLUMNS = ["N° FACTURE", "REF", "Article", "Quantité facturée", "Prix unitaire", "Total payé HT", 
+               "Stock entré en caisse", "Stock restant en caisse", "Boutique", "Casse ou échange"]
     for invoice in list_invoices_dict:
         company_name = invoice.get("company_name", "Unknown")
         number = invoice.get("invoice_reference", {}).get("number", "Unknown")  
         date = invoice.get("invoice_reference", {}).get("date", "Unknown")
         date = to_french_date(date)
         invoice_number = f"{number} du {date}"
-        sheets_2 = {}
-        for sheet_name in sheets:
-            sheets_2[normalize_excel_sheet_name(sheet_name)] = sheet_name
         normalized_company_name = normalize_excel_sheet_name(company_name)
-        COLUMNS = ["N° FACTURE", "REF", "Article", "Quantité facturée", "Prix unitaire", "Total payé HT", 
-                   "Stock entré en caisse", "Stock restant en caisse", "Boutique", "Casse ou échange"]
         if normalized_company_name in sheets_2:
             sheet_name = sheets_2[normalized_company_name]
             df_existing = sheets[sheet_name]
             df_existing.columns = COLUMNS
         else:
             sheet_name = sanitize_excel_sheet_name(company_name)
+            sheets_2[normalize_excel_sheet_name(sheet_name)] = sheet_name
             df_existing = pd.DataFrame(columns=COLUMNS)
         rows = []
         for article in invoice.get("articles", []):
