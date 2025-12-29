@@ -118,7 +118,7 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
     except Exception:
         sheets = {}
     csv_file.seek(0)
-    sheets_2 = {normalize_excel_sheet_name(sheet_name):sheet_name for sheet_name in sheets}
+    normalized_names = {normalize_excel_sheet_name(sheet_name):sheet_name for sheet_name in sheets}
     COLUMNS = ["N° FACTURE", "REF", "Article", "Quantité facturée", "Prix unitaire", "Total payé HT", 
                "Stock entré en caisse", "Stock restant en caisse", "Boutique", "Casse ou échange"]
     for invoice in list_invoices_dict:
@@ -128,13 +128,13 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
         date = to_french_date(date)
         invoice_number = f"{number} du {date}"
         normalized_company_name = normalize_excel_sheet_name(company_name)
-        if normalized_company_name in sheets_2:
-            sheet_name = sheets_2[normalized_company_name]
+        if normalized_company_name in normalized_names:
+            sheet_name = normalized_names[normalized_company_name]
             df_existing = sheets[sheet_name]
             df_existing.columns = COLUMNS
         else:
             sheet_name = sanitize_excel_sheet_name(company_name)
-            sheets_2[normalize_excel_sheet_name(sheet_name)] = sheet_name
+            normalized_names[normalize_excel_sheet_name(sheet_name)] = sheet_name
             df_existing = pd.DataFrame(columns=COLUMNS)
         rows = []
         for article in invoice.get("articles", []):
