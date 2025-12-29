@@ -104,11 +104,11 @@ def invoice_to_image(invoice):
 
 def fill_excel_file(list_invoices_dict, excel_file):
     """
-    Fill an Excel file with the invoice data.
-    
+    Fill an Excel file with invoices.
+
     Args:
-        invoice_dict (dict): The invoice data.
-        excel_path (str): The path to the Excel file.
+        list_invoices_dict (list[dict]): The list of invoices to fill in the Excel file.
+        excel_file (streamlit.uploader.Uploader): The Excel file to fill.
     """
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
         tmp_file.write(excel_file.read())
