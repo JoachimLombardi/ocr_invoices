@@ -245,7 +245,7 @@ if st.button("Lancer le traitement"):
                     "model": "gpt-4.1",
                     "input": messages,
                     "tools": tools,
-                    "tool_choice": {"type": "function", "name": "extract_invoice_data"},
+                    "tool_choice": {"type": tools[0]["type"], "name": tools[0]["name"]},
                     "temperature": 0,
                     }
             for attempt in range(1,4):
