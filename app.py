@@ -121,6 +121,7 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
     normalized_names = {normalize_excel_sheet_name(sheet_name):sheet_name for sheet_name in sheets}
     COLUMNS = ["N° FACTURE", "REF", "Article", "Quantité facturée", "Prix unitaire", "Total payé HT", 
                "Stock entré en caisse", "Stock restant en caisse", "Boutique", "Casse ou échange"]
+    empty_row = pd.DataFrame([[""] * len(COLUMNS)], columns=COLUMNS)
     for invoice in list_invoices_dict:
         company_name = invoice.get("company_name", "Unknown")
         number = invoice.get("invoice_reference", {}).get("number", "Unknown")  
@@ -147,12 +148,11 @@ def fill_excel_file(list_invoices_dict, csv_file, excel_name):
             row["Total payé HT"] = article.get("total_price")
             rows.append(row)
         df_new = pd.DataFrame(rows, columns=COLUMNS)
-        empty_row = pd.DataFrame([[""] * len(df_existing.columns)], columns=df_existing.columns)
         df = pd.concat([df_existing, empty_row, df_new], ignore_index=True)
         sheets[sheet_name] = df
-    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as excel_writer:
         for sheet_name, df in sheets.items():
-            df.to_excel(writer, index=False, sheet_name=sheet_name)
+            df.to_excel(excel_writer, index=False, sheet_name=sheet_name)
     st.success(f"Le fichier Excel {csv_file.name} a été rempli avec les {len(invoices) } factures, vous pouvez le telecharger ci-dessous.😃🔥")
     warning_box = st.empty()
     warning_box.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
