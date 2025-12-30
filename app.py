@@ -83,6 +83,8 @@ def to_french_date(date_str: str) -> str:
     "décembre": "december",
     "decembre": "december",
     }
+    if not date_str:
+        return None
     date_str = date_str.lower()
     for fr, en in MONTHS_FR_EN.items():
         date_str = date_str.replace(fr, en)
