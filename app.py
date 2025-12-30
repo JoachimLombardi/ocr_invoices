@@ -55,20 +55,43 @@ def normalize_excel_sheet_name(name: str) -> str:
 
 def to_french_date(date_str: str) -> str:
     """
-    Convert a date string to a French date string.
+    Convert a date string from French to English format.
 
     Args:
         date_str (str): The date string to convert.
 
     Returns:
-        str: The French date string.
+        str: The date string in English format (dd/mm/yyyy).
+
+    Raises:
+        Exception: If the date string is not in the correct format.
     """
+    MONTHS_FR_EN = {
+    "janvier": "january",
+    "février": "february",
+    "fevrier": "february",
+    "mars": "march",
+    "avril": "april",
+    "mai": "may",
+    "juin": "june",
+    "juillet": "july",
+    "août": "august",
+    "aout": "august",
+    "septembre": "september",
+    "octobre": "october",
+    "novembre": "november",
+    "décembre": "december",
+    "decembre": "december",
+    }
+    date_str = date_str.lower()
+    for fr, en in MONTHS_FR_EN.items():
+        date_str = date_str.replace(fr, en)
     try:
-        dt = parser.parse(date_str, dayfirst=False) 
+        dt = parser.parse(date_str, dayfirst=False)
         return dt.strftime("%d/%m/%Y")
     except Exception as e:
         print(f"Error converting {date_str}: {e}")
-        return date_str 
+        return date_str
 
 
 def invoice_to_image(invoice):
@@ -124,7 +147,7 @@ def fill_excel_file(list_invoices_dict, excel_file):
     empty_row = pd.DataFrame([[""] * len(COLUMNS)], columns=COLUMNS)
     for invoice in list_invoices_dict:
         company_name = invoice.get("company_name", "Unknown")
-        number = invoice.get("invoice_reference", {}).get("number", "Unknown")  
+        number = invoice.get("invoice_reference", {}).get("number", "Unknown")
         date = invoice.get("invoice_reference", {}).get("date", "Unknown")
         date = to_french_date(date)
         invoice_number = f"{number} du {date}"
