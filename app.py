@@ -11,6 +11,7 @@ from dateutil import parser
 from dotenv import load_dotenv
 import re
 from openai import OpenAI
+import openpyxl
 
 load_dotenv()
 
@@ -178,6 +179,10 @@ def fill_excel_file(list_invoices_dict, excel_file):
     with pd.ExcelWriter(excel_path, engine="openpyxl") as excel_writer:
         for sheet_name, df in sheets.items():
             df.to_excel(excel_writer, index=False, sheet_name=sheet_name)
+        for sheet_name in excel_writer.sheets:
+            worksheet = excel_writer.sheets[sheet_name]
+            for col in range(1, worksheet.max_column + 1):
+                worksheet.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 35
     st.success(f"Le fichier Excel {excel_file.name} a été rempli avec les {len(invoices)} factures, vous pouvez le telecharger ci-dessous.😃🔥")
     warning_box = st.empty()
     warning_box.warning(f"⚠️ L'IA peut faire des erreurs, pensez à vérifier systématiquement le contenu du fichier Excel.")
