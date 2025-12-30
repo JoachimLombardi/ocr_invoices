@@ -89,7 +89,7 @@ def to_french_date(date_str: str) -> str:
     for fr, en in MONTHS_FR_EN.items():
         date_str = date_str.replace(fr, en)
     try:
-        dt = parser.parse(date_str, dayfirst=False)
+        dt = parser.parse(date_str, dayfirst=True)
         return dt.strftime("%d/%m/%Y")
     except Exception as e:
         print(f"Error converting {date_str}: {e}")
