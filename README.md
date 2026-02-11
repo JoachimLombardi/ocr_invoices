@@ -25,21 +25,23 @@ Une fois que l'utilisateur à téléversé ses fichiers, l'application renverra 
 les éventuelles contre-indications et les éventuels médicaments de substitution. Dans les **cadres en bleu**, il renverra les documents sources correspondant aux notices de chaque médicament où les passages
 précisant les éventuelles incompatibilitées et les éventuels médicaments de substitution seront **surlignés en jaune**.
 
-#### Exemple de traitement:
+#### Exemple de traitement
 
-##### Ecran
-<img width="739" height="623" alt="image" src="https://github.com/user-attachments/assets/c9c4ae83-b5d4-42c9-88ec-1be12eeae478" />
+##### Écran
+<img width="739" height="623" alt="Interface de l'application" src="https://github.com/user-attachments/assets/c9c4ae83-b5d4-42c9-88ec-1be12eeae478" />
+
 ##### Facture
-<img width="1417" height="834" alt="image" src="https://github.com/user-attachments/assets/c6d42be4-932b-4a26-a547-544f0611395a" />
+<img width="1417" height="834" alt="Facture d'entrée" src="https://github.com/user-attachments/assets/c6d42be4-932b-4a26-a547-544f0611395a" />
 
 
+#### Exemple de réponse
 
-#### Exemple de réponse :
+##### Écran
+<img width="760" height="832" alt="Résultat affiché à l'écran" src="https://github.com/user-attachments/assets/494cc7ef-1434-4624-8126-9148460da979" />
 
-##### Ecran
-<img width="760" height="832" alt="image" src="https://github.com/user-attachments/assets/494cc7ef-1434-4624-8126-9148460da979" />
-##### Fichier excel
-<img width="1711" height="80" alt="image" src="https://github.com/user-attachments/assets/9ab2e4c9-be73-4e29-b811-187c5b50b4dc" />
+##### Fichier Excel
+<img width="1711" height="80" alt="Fichier Excel généré" src="https://github.com/user-attachments/assets/9ab2e4c9-be73-4e29-b811-187c5b50b4dc" />
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
