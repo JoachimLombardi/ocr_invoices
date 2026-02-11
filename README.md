@@ -27,13 +27,11 @@ précisant les éventuelles incompatibilitées et les éventuels médicaments de
 
 #### Exemple de traitement
 
-##### Écran
 <img width="739" height="623" alt="Interface de l'application" src="https://github.com/user-attachments/assets/c9c4ae83-b5d4-42c9-88ec-1be12eeae478" />
 
 
 #### Exemple de réponse
 
-##### Écran
 <img width="760" height="832" alt="Résultat affiché à l'écran" src="https://github.com/user-attachments/assets/494cc7ef-1434-4624-8126-9148460da979" />
 
 
