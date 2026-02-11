@@ -43,7 +43,7 @@ précisant les éventuelles incompatibilitées et les éventuels médicaments de
 ##### Ecran
 <img width="760" height="832" alt="image" src="https://github.com/user-attachments/assets/494cc7ef-1434-4624-8126-9148460da979" />
 ##### Fichier excel
-<img width="1555" height="73" alt="image" src="https://github.com/user-attachments/assets/dc6f75a2-2ae5-4b02-b56e-813afbd1563c" />
+<img width="1711" height="80" alt="image" src="https://github.com/user-attachments/assets/9ab2e4c9-be73-4e29-b811-187c5b50b4dc" />
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
