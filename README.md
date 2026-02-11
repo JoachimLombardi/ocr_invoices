@@ -1,4 +1,4 @@
-# ocr invoices
+# Ocr invoices
 
 
   <h3>Extraction de factures avec OCR 📚</h3>
